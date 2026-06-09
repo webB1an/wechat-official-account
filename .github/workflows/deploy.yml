@@ -43,14 +43,13 @@ jobs:
             --exclude='node_modules' \
             --exclude='data' \
             --exclude='.env' \
-            --exclude='wechat-official-account-release.tar.gz' \
-            -czf wechat-official-account-release.tar.gz \
+            -czf "$RUNNER_TEMP/wechat-official-account-release.tar.gz" \
             .
 
       - name: Upload package
         shell: bash
         run: |
-          scp -P "${{ secrets.SSH_PORT }}" wechat-official-account-release.tar.gz "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/tmp/wechat-official-account-release.tar.gz"
+          scp -P "${{ secrets.SSH_PORT }}" "$RUNNER_TEMP/wechat-official-account-release.tar.gz" "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/tmp/wechat-official-account-release.tar.gz"
 
       - name: Deploy on server
         shell: bash
