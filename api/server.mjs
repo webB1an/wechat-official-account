@@ -1,4 +1,5 @@
 import { createServer } from 'node:http';
+import { createHash, timingSafeEqual } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { existsSync, mkdirSync } from 'node:fs';
 import { extname, join, normalize, resolve } from 'node:path';
@@ -42,6 +43,11 @@ const port = Number(process.env.PORT || 8787);
 const forceMockGeneration = String(process.env.MOCK_DEEPSEEK || '').toLowerCase() === 'true';
 const deepseekApiKey = forceMockGeneration ? '' : (process.env.DEEPSEEK_API_KEY || '');
 const verboseLogs = String(process.env.VERBOSE_LOGS || 'true').toLowerCase() !== 'false';
+const sitePassword = String(process.env.SITE_PASSWORD || '');
+const authCookieName = 'wechat_editor_auth';
+const authCookieValue = sitePassword
+  ? createHash('sha256').update(`wechat-editor-auth:${sitePassword}`).digest('hex')
+  : '';
 
 if (!existsSync(dataDir)) {
   mkdirSync(dataDir, { recursive: true });
@@ -73,6 +79,151 @@ function jsonResponse(res, status, payload) {
     'Content-Length': Buffer.byteLength(body)
   });
   res.end(body);
+}
+
+function htmlResponse(res, status, html, headers = {}) {
+  const body = Buffer.from(html, 'utf8');
+  res.writeHead(status, {
+    'Content-Type': 'text/html; charset=utf-8',
+    'Content-Length': body.length,
+    ...headers
+  });
+  res.end(body);
+}
+
+function parseCookies(cookieHeader = '') {
+  const cookies = {};
+  for (const pair of cookieHeader.split(';')) {
+    const separatorIndex = pair.indexOf('=');
+    if (separatorIndex === -1) continue;
+    const key = pair.slice(0, separatorIndex).trim();
+    const value = pair.slice(separatorIndex + 1).trim();
+    if (key) cookies[key] = decodeURIComponent(value);
+  }
+  return cookies;
+}
+
+function constantTimeEqual(a, b) {
+  const left = Buffer.from(String(a));
+  const right = Buffer.from(String(b));
+  if (left.length !== right.length) return false;
+  return timingSafeEqual(left, right);
+}
+
+function isAuthenticated(req) {
+  if (!sitePassword) return true;
+  const cookies = parseCookies(req.headers.cookie || '');
+  return constantTimeEqual(cookies[authCookieName] || '', authCookieValue);
+}
+
+function authCookieHeader(maxAge = 60 * 60 * 24 * 7) {
+  return [
+    `${authCookieName}=${encodeURIComponent(authCookieValue)}`,
+    'Path=/',
+    'HttpOnly',
+    'SameSite=Lax',
+    `Max-Age=${maxAge}`
+  ].join('; ');
+}
+
+function redirectResponse(res, location, headers = {}) {
+  res.writeHead(303, {
+    Location: location,
+    ...headers
+  });
+  res.end();
+}
+
+function serveLoginPage(res, hasError = false) {
+  htmlResponse(res, 200, `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>访问验证</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: #f6f7f9;
+      color: #111;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    }
+    main {
+      width: min(92vw, 360px);
+      padding: 28px;
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+    }
+    h1 {
+      margin: 0 0 8px;
+      font-size: 22px;
+      line-height: 1.25;
+      letter-spacing: 0;
+    }
+    p {
+      margin: 0 0 22px;
+      color: #5f6673;
+      font-size: 14px;
+      line-height: 1.7;
+    }
+    label {
+      display: block;
+      margin-bottom: 8px;
+      color: #303642;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    input {
+      width: 100%;
+      height: 44px;
+      padding: 0 12px;
+      border: 1px solid #cfd5df;
+      border-radius: 6px;
+      font-size: 16px;
+      outline: none;
+    }
+    input:focus {
+      border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
+    }
+    button {
+      width: 100%;
+      height: 44px;
+      margin-top: 16px;
+      border: 0;
+      border-radius: 6px;
+      background: #111827;
+      color: #fff;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .error {
+      margin: 12px 0 0;
+      color: #b42318;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>访问验证</h1>
+    <p>请输入站点密码后继续使用公众号排版器。</p>
+    <form method="post" action="/api/auth/login">
+      <label for="password">密码</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" autofocus required>
+      <button type="submit">进入</button>
+      ${hasError ? '<div class="error">密码不正确，请重试。</div>' : ''}
+    </form>
+  </main>
+</body>
+</html>`);
 }
 
 function createRequestLogger(scope = 'app') {
@@ -135,11 +286,63 @@ function redactLogMeta(value) {
   return result;
 }
 
-async function readRequestJson(req) {
+async function readRequestBody(req) {
   const chunks = [];
   for await (const chunk of req) chunks.push(chunk);
-  const raw = Buffer.concat(chunks).toString('utf8');
+  return Buffer.concat(chunks).toString('utf8');
+}
+
+async function readRequestJson(req) {
+  const raw = await readRequestBody(req);
   return raw ? JSON.parse(raw) : {};
+}
+
+async function handleAuthLogin(req, res) {
+  if (!sitePassword) {
+    redirectResponse(res, '/');
+    return;
+  }
+
+  const raw = await readRequestBody(req);
+  const contentType = String(req.headers['content-type'] || '').toLowerCase();
+  let password = '';
+
+  if (contentType.includes('application/json')) {
+    try {
+      password = String(JSON.parse(raw || '{}').password || '');
+    } catch {
+      password = '';
+    }
+  } else {
+    password = String(new URLSearchParams(raw).get('password') || '');
+  }
+
+  if (constantTimeEqual(password, sitePassword)) {
+    redirectResponse(res, '/', {
+      'Set-Cookie': authCookieHeader()
+    });
+    return;
+  }
+
+  redirectResponse(res, '/login?error=1');
+}
+
+function handleAuthLogout(res) {
+  redirectResponse(res, '/login', {
+    'Set-Cookie': authCookieHeader(0)
+  });
+}
+
+function requireAuth(req, res, url) {
+  if (isAuthenticated(req)) return true;
+
+  if (url.pathname.startsWith('/api/')) {
+    jsonResponse(res, 401, { error: 'AUTH_REQUIRED' });
+    return false;
+  }
+
+  redirectResponse(res, '/login');
+  return false;
 }
 
 const mimeTypes = {
@@ -1212,6 +1415,29 @@ const server = createServer(async (req, res) => {
     const url = new URL(req.url, `http://localhost:${port}`);
     if (req.method === 'GET' && url.pathname === '/api/health') {
       jsonResponse(res, 200, { ok: true, mock: !deepseekApiKey });
+      return;
+    }
+
+    if (req.method === 'GET' && url.pathname === '/login') {
+      if (isAuthenticated(req)) {
+        redirectResponse(res, '/');
+        return;
+      }
+      serveLoginPage(res, url.searchParams.has('error'));
+      return;
+    }
+
+    if (req.method === 'POST' && url.pathname === '/api/auth/login') {
+      await handleAuthLogin(req, res);
+      return;
+    }
+
+    if (req.method === 'POST' && url.pathname === '/api/auth/logout') {
+      handleAuthLogout(res);
+      return;
+    }
+
+    if (!requireAuth(req, res, url)) {
       return;
     }
 

@@ -45,10 +45,11 @@ mkdir -p /www/wwwroot/wechat-official-account
 cat > /www/wwwroot/wechat-official-account/.env <<'EOF'
 DEEPSEEK_API_KEY=你的生产环境Key
 PORT=8787
+SITE_PASSWORD=你的访问密码
 EOF
 ```
 
-`.env` 和 `data/` 不会被 CI/CD 覆盖，SQLite 数据会保留在服务器本地。
+`.env` 和 `data/` 不会被 CI/CD 覆盖，SQLite 数据会保留在服务器本地。设置 `SITE_PASSWORD` 后，访问网站和业务 API 都需要先输入密码；不设置则关闭访问验证。
 
 ## 本地推送到 GitHub
 
