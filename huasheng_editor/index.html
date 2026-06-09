@@ -1,0 +1,1861 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>公众号排版器</title>
+
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-5FTJSWC1Z5"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-5FTJSWC1Z5');
+  </script>
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="alternate icon" href="favicon.svg">
+  <link rel="mask-icon" href="favicon.svg" color="#0066FF">
+
+  <!-- Markdown 渲染库 -->
+  <script src="https://cdn.jsdelivr.net/npm/markdown-it@14.0.0/dist/markdown-it.min.js"></script>
+
+  <!-- 代码高亮库 -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/styles/atom-one-dark.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/es/highlight.min.js"></script>
+
+  <!-- Turndown - HTML 转 Markdown 库 -->
+  <script src="https://cdn.jsdelivr.net/npm/turndown@7.2.0/dist/turndown.js"></script>
+
+  <!-- Vue.js -->
+  <script src="https://cdn.jsdelivr.net/npm/vue@3.4.15/dist/vue.global.prod.js"></script>
+
+  <!-- html2canvas - 用于生成小红书图片 -->
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+
+  <!-- html-to-image - 用于将公众号配图模板导出为 PNG data URI -->
+  <script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.13/dist/html-to-image.js"></script>
+
+  <style>
+    :root {
+      --color-primary: #000;
+      --color-secondary: #666;
+      --color-tertiary: #999;
+      --color-accent: #0066FF;
+      --color-bg: #FAFAFA;
+      --color-surface: #FFF;
+      --color-border: #E0E0E0;
+      --color-light-border: #F0F0F0;
+      /* 侧边栏背景色 */
+      --bg-primary: #FFFFFF;
+      --bg-secondary: #F5F5F7;
+      --border-color: #E0E0E0;
+      --space-unit: 8px;
+      --space-xs: calc(var(--space-unit) * 1);
+      --space-sm: calc(var(--space-unit) * 2);
+      --space-md: calc(var(--space-unit) * 3);
+      --space-lg: calc(var(--space-unit) * 4);
+      --space-xl: calc(var(--space-unit) * 6);
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      --font-mono: "SF Mono", Monaco, "Cascadia Code", "Consolas", monospace;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      font-size: 15px;
+      line-height: 1.6;
+      color: var(--color-primary);
+      background-color: var(--color-bg);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    #app {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: auto auto auto 1fr;
+      height: 100vh;
+      background: var(--color-surface);
+    }
+
+    /* 顶部栏 */
+    .header {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--space-sm) var(--space-lg);
+      border-bottom: 1px solid var(--color-border);
+      background: var(--color-surface);
+    }
+
+    .logo {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--color-primary);
+      letter-spacing: -0.02em;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* 样式选择区 - 横向滚动 */
+    .styles-section {
+      grid-column: 1 / -1;
+      padding: var(--space-sm) 0;
+      border-bottom: 1px solid var(--color-border);
+      background: var(--color-surface);
+      overflow: hidden;
+    }
+
+    .styles-container {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      padding: 0 var(--space-lg);
+    }
+
+    .styles-label {
+      font-size: 12px;
+      color: var(--color-tertiary);
+      font-weight: 500;
+      flex-shrink: 0;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .styles-scroll-wrapper {
+      flex: 1;
+      overflow-x: auto;
+      overflow-y: hidden;
+      scroll-behavior: smooth;
+      padding: 2px 0;
+    }
+
+    .styles-scroll-wrapper::-webkit-scrollbar {
+      height: 6px;
+    }
+
+    .styles-scroll-wrapper::-webkit-scrollbar-thumb {
+      background: var(--color-border);
+      border-radius: 3px;
+    }
+
+    .styles-list {
+      display: flex;
+      gap: 8px;
+      padding: 0 2px;
+    }
+
+    .style-card {
+      padding: 6px 12px;
+      border: 1px solid var(--color-light-border);
+      border-radius: 6px;
+      background: var(--color-surface);
+      cursor: pointer;
+      transition: all 120ms;
+      font-size: 12px;
+      color: var(--color-primary);
+      white-space: nowrap;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      position: relative;
+    }
+
+    .style-card:hover {
+      border-color: var(--color-accent);
+      background: var(--color-bg);
+    }
+
+    .style-card.active {
+      border-color: var(--color-accent);
+      background: var(--color-accent);
+      color: var(--color-surface);
+      font-weight: 500;
+    }
+
+    .style-card.recommended::before {
+      content: '✨';
+      font-size: 10px;
+      margin-right: 2px;
+    }
+
+    .style-card.starred::after {
+      content: '⭐';
+      font-size: 10px;
+      margin-left: 2px;
+    }
+
+    /* 随机推书生成区 */
+    .book-generator {
+      grid-column: 1 / -1;
+      padding: 14px var(--space-lg);
+      border-bottom: 1px solid var(--color-border);
+      background: #fbfbf8;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 18px;
+      align-items: center;
+    }
+
+    .book-generator__main {
+      display: grid;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .book-generator__eyebrow {
+      font-size: 12px;
+      color: #6f6b5d;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .book-generator__title {
+      font-size: 17px;
+      line-height: 1.35;
+      font-weight: 700;
+      color: #191919;
+      margin: 0;
+    }
+
+    .book-generator__meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      color: #5f625d;
+      font-size: 13px;
+    }
+
+    .book-generator__meta span {
+      padding: 2px 8px;
+      border: 1px solid #e3ded1;
+      border-radius: 999px;
+      background: #fff;
+    }
+
+    .book-generator__abstract {
+      max-width: 860px;
+      color: #50534f;
+      font-size: 13px;
+      line-height: 1.65;
+      margin: 0;
+    }
+
+    .book-generator__actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+    }
+
+    .book-generator__button {
+      border: 1px solid #191919;
+      background: #191919;
+      color: #fff;
+      border-radius: 7px;
+      padding: 9px 13px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity 120ms, transform 120ms;
+      white-space: nowrap;
+    }
+
+    .book-generator__button:hover {
+      opacity: 0.88;
+      transform: translateY(-1px);
+    }
+
+    .book-generator__button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .book-generator__button.secondary {
+      background: #fff;
+      color: #191919;
+      border-color: #d7d1c3;
+    }
+
+    .book-generator__cover {
+      width: 220px;
+      max-width: 100%;
+      border: 1px solid #ded8ca;
+      background: #fff;
+      padding: 6px;
+    }
+
+    .book-generator__cover img {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+
+    .visual-render-stage {
+      position: fixed;
+      left: -12000px;
+      top: 0;
+      width: 1100px;
+      pointer-events: none;
+      z-index: -1;
+    }
+
+    .visual-card {
+      position: relative;
+      overflow: hidden;
+      background: #f6f1e8;
+      color: #17202a;
+      font-family: Georgia, "Times New Roman", "Noto Serif SC", "Songti SC", serif;
+      isolation: isolate;
+    }
+
+    .visual-card.cover {
+      width: 900px;
+      height: 383px;
+      padding: 46px 58px;
+    }
+
+    .visual-card.inline {
+      width: 900px;
+      height: 506px;
+      padding: 58px 64px;
+      margin-top: 24px;
+    }
+
+    .visual-card__grain {
+      position: absolute;
+      inset: 0;
+      opacity: 0.38;
+      background-image:
+        linear-gradient(90deg, rgba(255,255,255,0.08) 1px, transparent 1px),
+        linear-gradient(rgba(0,0,0,0.04) 1px, transparent 1px);
+      background-size: 22px 22px;
+      z-index: -1;
+    }
+
+    .visual-card__mark {
+      position: absolute;
+      right: 46px;
+      bottom: 34px;
+      width: 142px;
+      height: 142px;
+      border-radius: 50%;
+      border: 1px solid currentColor;
+      opacity: 0.22;
+    }
+
+    .visual-card__mark::before,
+    .visual-card__mark::after {
+      content: "";
+      position: absolute;
+      border: 1px solid currentColor;
+      opacity: 0.62;
+    }
+
+    .visual-card__mark::before {
+      width: 92px;
+      height: 120px;
+      left: 22px;
+      top: 12px;
+      transform: rotate(-9deg);
+    }
+
+    .visual-card__mark::after {
+      width: 54px;
+      height: 54px;
+      right: 16px;
+      top: 18px;
+      border-radius: 50%;
+    }
+
+    .visual-card__label {
+      font-size: 21px;
+      line-height: 1;
+      letter-spacing: 0;
+      font-weight: 700;
+      margin-bottom: 34px;
+      color: inherit;
+      opacity: 0.78;
+    }
+
+    .visual-card__headline {
+      max-width: 560px;
+      font-size: 46px;
+      line-height: 1.13;
+      letter-spacing: 0;
+      font-weight: 800;
+      margin: 0 0 20px;
+      color: inherit;
+    }
+
+    .visual-card.cover .visual-card__headline {
+      max-width: 480px;
+      font-size: 43px;
+    }
+
+    .visual-card__subtitle {
+      max-width: 560px;
+      font-size: 25px;
+      line-height: 1.35;
+      letter-spacing: 0;
+      font-weight: 500;
+      color: inherit;
+      opacity: 0.82;
+      margin: 0;
+    }
+
+    .visual-card__caption {
+      position: absolute;
+      left: 64px;
+      bottom: 46px;
+      max-width: 520px;
+      font-size: 20px;
+      line-height: 1.5;
+      color: inherit;
+      opacity: 0.72;
+      margin: 0;
+    }
+
+    /* 主内容区 */
+    .main-content {
+      display: contents;
+    }
+
+    /* 编辑器面板 */
+    .editor-panel {
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid var(--color-border);
+      overflow: hidden;
+    }
+
+    .markdown-input-container {
+      flex: 1;
+      overflow: hidden;
+      padding: var(--space-md);
+      background: var(--color-surface);
+    }
+
+    .markdown-input {
+      width: 100%;
+      height: 100%;
+      padding: var(--space-lg);
+      border: 1px solid var(--color-border);
+      border-radius: 8px;
+      font-family: var(--font-mono);
+      font-size: 14px;
+      line-height: 1.6;
+      resize: none;
+      background: var(--color-surface);
+      color: var(--color-primary);
+      transition: all 120ms;
+    }
+
+    .markdown-input:focus {
+      outline: 2px solid var(--color-accent);
+      outline-offset: -2px;
+    }
+
+    .markdown-input.drag-over {
+      background: var(--color-bg);
+      border-color: var(--color-accent);
+      box-shadow: 0 0 0 4px rgba(0, 102, 255, 0.1);
+    }
+
+    /* 编辑器底部工具栏 */
+    .editor-footer {
+      padding: var(--space-sm) var(--space-lg);
+      border-top: 1px solid var(--color-border);
+      background: var(--color-bg);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .upload-section {
+      display: flex;
+      align-items: center;
+      gap: var(--space-md);
+    }
+
+    .upload-label {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      cursor: pointer;
+      padding: var(--space-sm) var(--space-md);
+      border: 1px solid var(--color-border);
+      border-radius: 6px;
+      background: var(--color-surface);
+      color: var(--color-secondary);
+      font-size: 13px;
+      transition: all 120ms;
+    }
+
+    .upload-label:hover {
+      background: var(--color-surface);
+      border-color: var(--color-accent);
+      color: var(--color-accent);
+    }
+
+    .upload-hints {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .upload-hint {
+      font-size: 12px;
+      color: var(--color-tertiary);
+    }
+
+    .feishu-hint {
+      font-size: 11px;
+      color: var(--color-accent);
+      line-height: 1.4;
+      opacity: 0.8;
+    }
+
+    .char-count {
+      font-size: 12px;
+      color: var(--color-tertiary);
+      font-family: var(--font-mono);
+    }
+
+    /* 预览面板 */
+    .preview-panel {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .preview-header {
+      padding: var(--space-sm) var(--space-lg);
+      border-bottom: 1px solid var(--color-border);
+      background: var(--color-bg);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .preview-title {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--color-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .mode-switcher {
+      display: flex;
+      gap: 4px;
+      background: var(--color-bg);
+      border-radius: 6px;
+      padding: 2px;
+    }
+
+    .mode-toggle-btn {
+      padding: 6px 12px;
+      background: transparent;
+      border: none;
+      border-radius: 4px;
+      color: var(--color-secondary);
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 120ms;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      text-transform: none;
+      font-weight: normal;
+    }
+
+    .mode-toggle-btn:hover {
+      color: var(--color-primary);
+    }
+
+    .mode-toggle-btn.active {
+      background: var(--color-surface);
+      color: var(--color-primary);
+      font-weight: 500;
+    }
+
+    .mode-toggle-btn svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    .preview-actions {
+      display: flex;
+      gap: var(--space-sm);
+      align-items: center;
+    }
+
+    .star-btn {
+      width: 28px;
+      height: 28px;
+      border: 1px solid var(--color-border);
+      background: var(--color-surface);
+      color: var(--color-secondary);
+      cursor: pointer;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 120ms;
+    }
+
+    .star-btn:hover {
+      background: var(--color-bg);
+      color: var(--color-accent);
+    }
+
+    .star-btn.active {
+      background: var(--color-accent);
+      color: var(--color-surface);
+      border-color: var(--color-accent);
+    }
+
+    .star-btn svg {
+      width: 14px;
+      height: 14px;
+      stroke-width: 2;
+    }
+
+    .gif-switch {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      user-select: none;
+      font-size: 12px;
+      color: var(--color-secondary);
+      white-space: nowrap;
+    }
+
+    .gif-switch__input {
+      position: absolute;
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .gif-switch__track {
+      position: relative;
+      width: 34px;
+      height: 18px;
+      border-radius: 9px;
+      background: var(--color-border);
+      transition: background 160ms;
+      flex: none;
+    }
+
+    .gif-switch__track.on {
+      background: var(--color-accent);
+    }
+
+    .gif-switch__thumb {
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+      transition: transform 160ms;
+    }
+
+    .gif-switch__track.on .gif-switch__thumb {
+      transform: translateX(16px);
+    }
+
+    .copy-btn {
+      padding: 6px 16px;
+      background: var(--color-primary);
+      color: var(--color-surface);
+      border: none;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 120ms;
+      letter-spacing: 0.02em;
+    }
+
+    .copy-btn:hover {
+      opacity: 0.8;
+    }
+
+    .copy-btn:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+
+    .copy-btn.success {
+      background: #00C853;
+    }
+
+    .copy-btn-x {
+      background: #1d9bf0;
+    }
+
+    .copy-btn-x:hover {
+      background: #1a8cd8;
+      opacity: 1;
+    }
+
+    .copy-btn-x.success {
+      background: #00C853;
+    }
+
+    .preview-content {
+      flex: 1;
+      overflow-y: auto;
+      background: var(--color-surface);
+      position: relative;
+      /* 两侧自适应留白：窄屏也不让内容顶到边，宽屏维持原有间距 */
+      padding: 0 clamp(24px, 6%, 80px);
+    }
+
+    .preview-container {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 20px 32px 48px 32px;
+      line-height: 1.8;
+      position: relative;
+    }
+
+    .preview-container.layout-mode img {
+      cursor: pointer;
+      transition: all 120ms;
+    }
+
+    /* 左右联动：跳转时高亮对应块 */
+    .preview-container .source-flash {
+      animation: sourceFlash 800ms ease-out;
+      border-radius: 4px;
+    }
+
+    @keyframes sourceFlash {
+      0% { box-shadow: 0 0 0 3px rgba(255, 189, 46, 0.55); }
+      100% { box-shadow: 0 0 0 3px rgba(255, 189, 46, 0); }
+    }
+
+    .preview-container.layout-mode img:hover {
+      outline: 2px solid var(--color-accent);
+      outline-offset: 2px;
+    }
+
+    /* 图片控制面板 */
+    .image-control-panel {
+      background: white;
+      border: 2px solid var(--color-accent);
+      border-radius: 8px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+      padding: 16px;
+      animation: fadeIn 200ms ease-out;
+      min-width: 300px;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .control-panel-inner {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+    }
+
+    .control-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .control-group label {
+      font-size: 12px;
+      color: var(--color-secondary);
+      font-weight: 500;
+    }
+
+    .width-slider {
+      width: 120px;
+      height: 4px;
+      -webkit-appearance: none;
+      appearance: none;
+      background: var(--color-border);
+      border-radius: 2px;
+      outline: none;
+    }
+
+    .width-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 12px;
+      height: 12px;
+      background: var(--color-accent);
+      border-radius: 50%;
+      cursor: pointer;
+    }
+
+    .width-slider::-moz-range-thumb {
+      width: 12px;
+      height: 12px;
+      background: var(--color-accent);
+      border-radius: 50%;
+      cursor: pointer;
+      border: none;
+    }
+
+    .width-value {
+      font-size: 11px;
+      color: var(--color-tertiary);
+      font-family: var(--font-mono);
+      min-width: 45px;
+    }
+
+    .align-buttons {
+      display: flex;
+      gap: 4px;
+    }
+
+    .align-buttons button {
+      width: 24px;
+      height: 24px;
+      border: 1px solid var(--color-border);
+      background: var(--color-surface);
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      transition: all 120ms;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .align-buttons button:hover {
+      background: var(--color-bg);
+      border-color: var(--color-accent);
+    }
+
+    .align-buttons button.active {
+      background: var(--color-accent);
+      color: var(--color-surface);
+      border-color: var(--color-accent);
+    }
+
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: var(--color-tertiary);
+    }
+
+    .empty-state-icon {
+      width: 64px;
+      height: 64px;
+      margin-bottom: var(--space-lg);
+      opacity: 0.3;
+    }
+
+    .empty-state h3 {
+      font-size: 15px;
+      font-weight: 500;
+      color: var(--color-secondary);
+      margin-bottom: var(--space-xs);
+    }
+
+    .empty-state p {
+      font-size: 13px;
+      color: var(--color-tertiary);
+    }
+
+    /* 小红书预览样式 */
+    .xiaohongshu-preview {
+      padding: var(--space-lg);
+      overflow-y: auto;
+    }
+
+    .xiaohongshu-controls {
+      display: flex;
+      gap: var(--space-sm);
+      margin-bottom: var(--space-lg);
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .xiaohongshu-btn {
+      padding: 8px 16px;
+      background: var(--color-primary);
+      color: var(--color-surface);
+      border: none;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 120ms;
+    }
+
+    .xiaohongshu-btn:hover {
+      opacity: 0.8;
+    }
+
+    .xiaohongshu-btn:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+
+    .xiaohongshu-btn.secondary {
+      background: var(--color-surface);
+      color: var(--color-primary);
+      border: 1px solid var(--color-border);
+    }
+
+    .xiaohongshu-images-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: var(--space-md);
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .xiaohongshu-image-card {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      transition: all 120ms;
+      cursor: pointer;
+    }
+
+    .xiaohongshu-image-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .xiaohongshu-image-card img {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    .xiaohongshu-image-label {
+      padding: var(--space-sm);
+      text-align: center;
+      font-size: 12px;
+      color: var(--color-secondary);
+      background: var(--color-bg);
+    }
+
+    .xiaohongshu-loading {
+      text-align: center;
+      padding: var(--space-xl);
+      color: var(--color-secondary);
+    }
+
+    .xiaohongshu-empty {
+      text-align: center;
+      padding: var(--space-xl);
+      color: var(--color-tertiary);
+    }
+
+    /* Toast 提示 */
+    .toast {
+      position: fixed;
+      bottom: var(--space-lg);
+      right: var(--space-lg);
+      padding: var(--space-md) var(--space-lg);
+      background: var(--color-primary);
+      color: var(--color-surface);
+      border-radius: 6px;
+      font-size: 13px;
+      z-index: 1000;
+      animation: slideUp 200ms ease-out;
+    }
+
+    @keyframes slideUp {
+      from {
+        transform: translateY(100px);
+        opacity: 0;
+      }
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+
+    .toast.success {
+      background: #00C853;
+    }
+
+    .toast.error {
+      background: #D32F2F;
+    }
+
+    /* 滚动条 */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--color-border);
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--color-tertiary);
+    }
+
+    /* 移动端响应式布局 */
+    @media (max-width: 768px) {
+      #app {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto auto auto 1fr;
+        height: 100vh;
+      }
+
+      .header {
+        flex-wrap: wrap;
+        gap: var(--space-xs);
+        padding: var(--space-xs) var(--space-sm);
+      }
+
+      .logo {
+        font-size: 14px;
+      }
+
+      .styles-section {
+        padding: var(--space-xs) 0;
+      }
+
+      .styles-container {
+        padding: 0 var(--space-sm);
+      }
+
+      .style-card {
+        font-size: 11px;
+        padding: 4px 8px;
+      }
+
+      .book-generator {
+        grid-template-columns: 1fr;
+        padding: var(--space-sm);
+        gap: 12px;
+      }
+
+      .book-generator__title {
+        font-size: 15px;
+      }
+
+      .book-generator__abstract {
+        font-size: 12px;
+      }
+
+      .book-generator__actions {
+        justify-content: flex-start;
+      }
+
+      .book-generator__cover {
+        width: 180px;
+      }
+
+      .editor-panel {
+        border-right: none;
+        border-bottom: 1px solid var(--color-border);
+        max-height: 30vh;
+      }
+
+      .markdown-input-container {
+        padding: var(--space-sm);
+      }
+
+      .markdown-input {
+        font-size: 13px;
+        padding: var(--space-md);
+      }
+
+      .editor-footer {
+        flex-direction: column;
+        gap: var(--space-sm);
+        align-items: stretch;
+        padding: var(--space-sm) var(--space-md);
+      }
+
+      .upload-section {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .upload-label {
+        width: 100%;
+        justify-content: center;
+      }
+
+      .upload-hints {
+        align-items: center;
+        text-align: center;
+      }
+
+      .feishu-hint {
+        font-size: 10px;
+      }
+
+      .preview-header {
+        padding: var(--space-xs) var(--space-sm);
+      }
+
+      .copy-btn {
+        padding: 6px 10px;
+        font-size: 12px;
+      }
+
+      .preview-panel {
+        height: auto;
+      }
+
+      .preview-container {
+        padding: var(--space-lg) var(--space-md);
+      }
+
+      .toast {
+        left: var(--space-md);
+        right: var(--space-md);
+        bottom: var(--space-md);
+      }
+    }
+
+    /* 平板端优化 */
+    @media (min-width: 769px) and (max-width: 1024px) {
+      #app {
+        max-width: 100%;
+      }
+
+      .header {
+        padding: var(--space-sm) var(--space-lg);
+      }
+
+      .styles-section {
+        padding: var(--space-sm) 0;
+      }
+
+      .book-generator {
+        grid-template-columns: minmax(0, 1fr) 320px;
+      }
+
+      .preview-container {
+        padding: var(--space-xl) var(--space-lg);
+      }
+    }
+
+    /* ==================== 历史记录功能样式 ==================== */
+
+    /* 历史按钮和保存按钮 */
+    .history-btn,
+    .save-btn {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 6px 10px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      color: var(--text-primary);
+      font-size: 13px;
+    }
+
+    .history-btn:hover,
+    .save-btn:hover {
+      background: var(--bg-primary);
+      border-color: var(--primary-color);
+      color: var(--primary-color);
+    }
+
+    .history-btn svg,
+    .save-btn svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    /* 侧边栏遮罩层 */
+    .history-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.4);
+      z-index: 999;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.3s ease;
+    }
+
+    .history-overlay.visible {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    /* 历史记录侧边栏 */
+    .history-sidebar {
+      position: fixed;
+      top: 0;
+      right: -360px;
+      width: 360px;
+      height: 100vh;
+      background: var(--bg-primary);
+      border-left: 1px solid var(--border-color);
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      transition: right 0.3s ease;
+      box-shadow: -4px 0 20px rgba(0, 0, 0, 0.1);
+    }
+
+    .history-sidebar.open {
+      right: 0;
+    }
+
+    /* 侧边栏头部 */
+    .history-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border-color);
+      background: var(--bg-secondary);
+    }
+
+    .history-header-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .history-header h3 {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .history-count {
+      padding: 2px 8px;
+      background: var(--primary-color);
+      color: white;
+      border-radius: 10px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .history-close-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      background: transparent;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      color: var(--text-muted);
+      transition: all 0.2s ease;
+    }
+
+    .history-close-btn:hover {
+      background: var(--bg-primary);
+      color: var(--text-primary);
+    }
+
+    .history-close-btn svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    /* 历史记录列表 */
+    .history-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px;
+    }
+
+    /* 历史记录项 */
+    .history-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 14px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      margin-bottom: 10px;
+      transition: all 0.2s ease;
+    }
+
+    .history-item:hover {
+      border-color: var(--primary-color);
+      box-shadow: 0 2px 8px rgba(0, 102, 255, 0.1);
+    }
+
+    .history-item-content {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .history-title {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-primary);
+      margin-bottom: 6px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .history-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .history-time {
+      color: var(--text-muted);
+    }
+
+    .history-style {
+      padding: 1px 6px;
+      background: var(--bg-primary);
+      border-radius: 4px;
+      font-size: 11px;
+    }
+
+    /* 历史记录操作按钮 */
+    .history-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .history-action-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      background: var(--bg-primary);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .history-action-btn svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    .history-action-btn.load {
+      color: var(--primary-color);
+    }
+
+    .history-action-btn.load:hover {
+      background: var(--primary-color);
+      color: white;
+      border-color: var(--primary-color);
+    }
+
+    .history-action-btn.delete {
+      color: #e74c3c;
+    }
+
+    .history-action-btn.delete:hover {
+      background: #e74c3c;
+      color: white;
+      border-color: #e74c3c;
+    }
+
+    /* 空状态 */
+    .history-empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 60px 20px;
+      text-align: center;
+      color: var(--text-muted);
+    }
+
+    .history-empty svg {
+      width: 48px;
+      height: 48px;
+      margin-bottom: 16px;
+      opacity: 0.5;
+    }
+
+    .history-empty p {
+      margin: 0 0 8px;
+      font-size: 14px;
+      color: var(--text-primary);
+    }
+
+    .history-empty span {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* 移动端响应式 */
+    @media (max-width: 768px) {
+      .history-btn-text,
+      .save-btn-text {
+        display: none;
+      }
+
+      .history-btn,
+      .save-btn {
+        padding: 6px;
+      }
+
+      .history-sidebar {
+        width: 100%;
+        right: -100%;
+      }
+
+      .history-sidebar.open {
+        right: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <!-- 顶部栏 -->
+    <header class="header">
+      <div class="logo">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="20" height="20">
+          <rect width="32" height="32" rx="6" fill="#0066FF"/>
+          <path d="M6 10 L6 22 L9 22 L9 15 L13 20 L17 15 L17 22 L20 22 L20 10 L16 10 L13 14 L10 10 Z" fill="white"/>
+          <rect x="6" y="24" width="20" height="2" rx="1" fill="white" opacity="0.7"/>
+        </svg>
+        <span>公众号排版器</span>
+      </div>
+    </header>
+
+    <!-- 样式选择区 - 横向滚动 -->
+    <section class="styles-section">
+      <div class="styles-container">
+        <div class="styles-label">选择样式</div>
+        <div class="styles-scroll-wrapper">
+          <div class="styles-list">
+            <!-- 收藏的样式 -->
+            <template v-if="starredStyles.length > 0">
+              <div
+                v-for="styleKey in starredStyles"
+                :key="'star-' + styleKey"
+                class="style-card starred"
+                :class="{ active: currentStyle === styleKey }"
+                @click="currentStyle = styleKey"
+              >
+                {{ getStyleName(styleKey) }}
+              </div>
+              <div style="width: 1px; height: 20px; background: var(--color-light-border); margin: 0 4px;"></div>
+            </template>
+
+            <!-- 所有样式，添加推荐标识 -->
+            <div
+              v-for="(style, key) in STYLES"
+              :key="key"
+              class="style-card"
+              :class="{
+                active: currentStyle === key,
+                starred: isStyleStarred(key),
+                recommended: isRecommended(key)
+              }"
+              @click="currentStyle = key"
+            >
+              {{ style.name }}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 随机推书生成区 -->
+    <section class="book-generator">
+      <div class="book-generator__main">
+        <div class="book-generator__eyebrow">随机推书工作流</div>
+        <h1 class="book-generator__title">
+          {{ generatedArticle ? getGeneratedArticleTitle() : '生成一篇公众号随机推书文章' }}
+        </h1>
+        <div v-if="generatedArticle" class="book-generator__meta">
+          <span>{{ generatedArticle.book.title }} · {{ generatedArticle.book.author }}</span>
+          <span>{{ generationTheme }}</span>
+          <span>{{ generatedArticle.book.category }}</span>
+          <span>{{ generatedArticle.article.structureName }}</span>
+          <span v-if="isMockGeneration">Mock 数据</span>
+        </div>
+        <p class="book-generator__abstract">
+          {{ generatedArticle ? generatedArticle.abstract.text : '点击生成后，会自动推荐未推过的书，生成文章、封面图和 3 张文内图。封面图单独下载，文内图以 base64 形式插入正文 Markdown。' }}
+        </p>
+      </div>
+      <div class="book-generator__actions">
+        <div v-if="coverImageDataUri" class="book-generator__cover">
+          <img :src="coverImageDataUri" alt="公众号封面图预览">
+        </div>
+        <button
+          class="book-generator__button secondary"
+          :disabled="!coverImageDataUri"
+          @click="downloadCoverImage"
+        >
+          下载封面图
+        </button>
+        <button
+          class="book-generator__button"
+          :disabled="generatingArticle"
+          @click="generateBookArticle"
+        >
+          {{ generatingArticle ? '生成中...' : '生成随机推书' }}
+        </button>
+      </div>
+    </section>
+
+    <!-- 隐藏图片渲染模板：通过 html-to-image 导出为 PNG data URI -->
+    <div class="visual-render-stage" aria-hidden="true">
+      <div
+        ref="coverVisualNode"
+        class="visual-card cover"
+        :style="visualStyle(generatedArticle?.visual.cover)"
+      >
+        <div class="visual-card__grain"></div>
+        <div class="visual-card__mark"></div>
+        <div class="visual-card__label">{{ generatedArticle ? generatedArticle.book.category : 'READING' }}</div>
+        <h2 class="visual-card__headline">{{ generatedArticle?.visual.cover.headline || '公众号推书' }}</h2>
+        <p class="visual-card__subtitle">{{ generatedArticle?.visual.cover.subtitle || '一本适合今天慢慢读的书' }}</p>
+      </div>
+
+      <div
+        v-for="(image, index) in generatedArticle?.visual.inlineImages || []"
+        :key="index"
+        ref="inlineVisualNodes"
+        class="visual-card inline"
+        :style="visualStyle(image)"
+      >
+        <div class="visual-card__grain"></div>
+        <div class="visual-card__mark"></div>
+        <div class="visual-card__label">0{{ index + 1 }}</div>
+        <h2 class="visual-card__headline">{{ image.title }}</h2>
+        <p class="visual-card__subtitle">{{ image.subtitle }}</p>
+        <p class="visual-card__caption">{{ image.caption }}</p>
+      </div>
+    </div>
+
+    <!-- 主内容区 -->
+    <div class="main-content">
+      <!-- 编辑器面板 -->
+      <div class="editor-panel">
+        <div class="markdown-input-container">
+          <textarea
+            ref="editorTextarea"
+            v-model="markdownInput"
+            class="markdown-input"
+            :class="{ 'drag-over': isDraggingOver }"
+            @paste="handleSmartPaste"
+            @drop="handleDrop"
+            @dragover="handleDragOver"
+            @dragenter="handleDragEnter"
+            @dragleave="handleDragLeave"
+            placeholder="# 在这里粘贴或输入 Markdown 内容
+
+## 功能特点
+
+- **实时预览**：所见即所得
+- **13 种样式**：随意切换
+- **智能粘贴**：支持从飞书、Notion、Word 直接粘贴
+- **图片支持**：直接粘贴或拖拽图片，自动上传
+- **一键复制**：直接粘贴到公众号
+
+💡 提示：可以直接粘贴截图，或拖拽图片文件到这里"
+            spellcheck="false"
+          ></textarea>
+        </div>
+
+        <!-- 编辑器底部工具栏 -->
+        <div class="editor-footer">
+          <div class="upload-section">
+            <label for="file-upload" class="upload-label">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="17 8 12 3 7 8"></polyline>
+                <line x1="12" y1="3" x2="12" y2="15"></line>
+              </svg>
+              <span>上传 MD 文件</span>
+              <input type="file" id="file-upload" accept=".md,.markdown" @change="handleFileUpload" style="display: none;">
+            </label>
+            <div class="upload-hints">
+              <span class="upload-hint">支持 .md / .markdown 文件</span>
+              <span class="feishu-hint">
+                💡 支持从飞书、Notion、Word 等直接粘贴，自动转换为 Markdown
+              </span>
+            </div>
+          </div>
+          <div class="char-count">
+            {{ markdownInput.length }} 字符
+          </div>
+        </div>
+      </div>
+
+      <!-- 预览面板 -->
+      <div class="preview-panel">
+        <div class="preview-header">
+          <div class="preview-title">
+            预览
+            <!-- 小红书功能入口已隐藏，待调试完成后再开放 -->
+            <!-- <div class="mode-switcher" style="display: none;">
+              <button
+                class="mode-toggle-btn"
+                :class="{ active: previewMode === 'wechat' }"
+                @click="previewMode = 'wechat'"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                </svg>
+                公众号
+              </button>
+              <button
+                class="mode-toggle-btn"
+                :class="{ active: previewMode === 'xiaohongshu' }"
+                @click="previewMode = 'xiaohongshu'"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="3" width="7" height="7" rx="1"/>
+                  <rect x="14" y="3" width="7" height="7" rx="1"/>
+                  <rect x="3" y="14" width="7" height="7" rx="1"/>
+                  <rect x="14" y="14" width="7" height="7" rx="1"/>
+                </svg>
+                小红书
+              </button>
+            </div> -->
+          </div>
+          <div class="preview-actions">
+            <button
+              class="star-btn"
+              :class="{ active: isStyleStarred(currentStyle) }"
+              @click="toggleStarStyle(currentStyle)"
+              title="收藏此样式"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" :fill="isStyleStarred(currentStyle) ? 'currentColor' : 'none'">
+                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
+              </svg>
+            </button>
+            <button
+              class="history-btn"
+              @click="toggleHistoryPanel"
+              title="历史记录"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+              <span class="history-btn-text">历史</span>
+            </button>
+            <button
+              class="save-btn"
+              @click="saveToHistory"
+              title="保存到历史记录"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path>
+              </svg>
+              <span class="save-btn-text">保存</span>
+            </button>
+            <label
+              v-if="hasGif"
+              class="gif-switch"
+              title="是否把 GIF 动图一起复制到公众号&#10;&#10;开启：GIF 以动图形式复制（公众号在多数情况下会保留动画）。&#10;关闭：GIF 替换为文字提示，需在公众号里手动重新上传。&#10;&#10;之所以有这个开关：base64 GIF 粘进公众号不一定能保住动画，所以做成可切换，按需选择。"
+            >
+              <span>含 GIF</span>
+              <span class="gif-switch__track" :class="{ on: includeGif }">
+                <span class="gif-switch__thumb"></span>
+              </span>
+              <input
+                type="checkbox"
+                class="gif-switch__input"
+                :checked="includeGif"
+                @change="toggleIncludeGif"
+              >
+            </label>
+            <button
+              class="copy-btn copy-btn-x"
+              :class="{ success: copyXSuccess }"
+              :disabled="!renderedContent"
+              @click="copyToXArticles"
+            >
+              {{ copyXSuccess ? '✓ 已复制' : '复制到 X' }}
+            </button>
+            <button
+              class="copy-btn"
+              :class="{ success: copySuccess }"
+              :disabled="!renderedContent"
+              @click="copyToClipboard"
+            >
+              {{ copySuccess ? '✓ 已复制' : '复制到公众号' }}
+            </button>
+          </div>
+        </div>
+
+        <!-- 公众号预览模式 -->
+        <div class="preview-content" ref="previewScroll">
+          <div v-if="!renderedContent" class="empty-state">
+            <svg class="empty-state-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <h3>开始编辑</h3>
+            <p>左侧输入 Markdown，右侧实时预览</p>
+          </div>
+          <div v-else class="preview-container" v-html="renderedContent"></div>
+        </div>
+
+        <!-- 小红书预览模式（已隐藏） -->
+        <!-- <div v-if="previewMode === 'xiaohongshu'" class="xiaohongshu-preview">
+          <div class="xiaohongshu-controls">
+            <button
+              class="xiaohongshu-btn"
+              :disabled="!renderedContent || xiaohongshuGenerating"
+              @click="generateXiaohongshuImages"
+            >
+              {{ xiaohongshuGenerating ? '生成中...' : '生成小红书图片' }}
+            </button>
+            <button
+              class="xiaohongshu-btn secondary"
+              :disabled="xiaohongshuImages.length === 0"
+              @click="downloadAllXiaohongshuImages"
+            >
+              批量下载 ({{ xiaohongshuImages.length }})
+            </button>
+          </div>
+
+          <div v-if="xiaohongshuGenerating" class="xiaohongshu-loading">
+            <p>正在生成小红书图片，请稍候...</p>
+          </div>
+
+          <div v-else-if="xiaohongshuImages.length === 0" class="xiaohongshu-empty">
+            <p>点击「生成小红书图片」按钮，将内容转换为适合小红书发布的多图</p>
+          </div>
+
+          <div v-else class="xiaohongshu-images-grid">
+            <div
+              v-for="(image, index) in xiaohongshuImages"
+              :key="index"
+              class="xiaohongshu-image-card"
+              @click="downloadXiaohongshuImage(image, index)"
+            >
+              <img :src="image.dataUrl" :alt="`第 ${index + 1} 张`">
+              <div class="xiaohongshu-image-label">
+                第 {{ index + 1 }} / {{ xiaohongshuImages.length }} 张
+              </div>
+            </div>
+          </div>
+        </div> -->
+      </div>
+    </div>
+
+    <!-- 历史记录侧边栏 -->
+    <aside class="history-sidebar" :class="{ open: showHistoryPanel }">
+      <div class="history-header">
+        <div class="history-header-left">
+          <h3>历史记录</h3>
+          <span class="history-count">{{ articleHistory.length }}/20</span>
+        </div>
+        <button class="history-close-btn" @click="toggleHistoryPanel">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+      <div class="history-list">
+        <div
+          v-for="article in articleHistory"
+          :key="article.id"
+          class="history-item"
+        >
+          <div class="history-item-content">
+            <div class="history-title">{{ article.title }}</div>
+            <div class="history-meta">
+              <span class="history-time">{{ formatHistoryDate(article.updatedAt) }}</span>
+              <span class="history-style">{{ STYLES[article.style]?.name || article.style }}</span>
+            </div>
+          </div>
+          <div class="history-actions">
+            <button class="history-action-btn load" @click="loadFromHistory(article.id)" title="加载">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+              </svg>
+            </button>
+            <button class="history-action-btn delete" @click="deleteFromHistory(article.id)" title="删除">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div v-if="!articleHistory.length" class="history-empty">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+          </svg>
+          <p>暂无历史记录</p>
+          <span>复制文章或点击保存按钮后自动记录</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- 侧边栏遮罩层 -->
+    <div class="history-overlay" :class="{ visible: showHistoryPanel }" @click="toggleHistoryPanel"></div>
+
+
+
+    <!-- Toast 提示 -->
+    <div v-if="toast.show" class="toast" :class="toast.type">
+      {{ toast.message }}
+    </div>
+  </div>
+
+  <!-- 加载脚本 -->
+  <script src="styles.js?v=3"></script>
+  <script src="app.js?v=3"></script>
+</body>
+</html>

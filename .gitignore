@@ -2,3 +2,5 @@
 data/*.sqlite
 data/*.sqlite-*
 node_modules/
+huasheng_editor/.git/
+.nested-git-backups/
