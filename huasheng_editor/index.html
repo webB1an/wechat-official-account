@@ -350,22 +350,9 @@
       z-index: -1;
     }
 
-    .visual-card__shade {
-      position: absolute;
-      inset: 0;
-      background:
-        linear-gradient(90deg, rgba(0, 0, 0, 0.28), rgba(0, 0, 0, 0.08) 42%, rgba(255, 255, 255, 0.08)),
-        radial-gradient(circle at 50% 50%, rgba(0, 0, 0, 0.18), transparent 44%);
-      mix-blend-mode: multiply;
-      opacity: 0.82;
-      z-index: 0;
-      pointer-events: none;
-    }
-
     .visual-card__text {
       position: relative;
       z-index: 2;
-      color: #fff !important;
     }
 
     .visual-card.cover .visual-card__text {
@@ -377,9 +364,6 @@
       align-items: center;
       padding: 38px 32px;
       text-align: center;
-      background: rgba(0, 0, 0, 0.24);
-      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22);
-      backdrop-filter: blur(1px);
     }
 
     .visual-card.inline .visual-card__text {
@@ -429,8 +413,10 @@
       font-weight: 800;
       margin-bottom: 34px;
       color: inherit;
-      opacity: 0.78;
-      text-shadow: 0 2px 10px rgba(0, 0, 0, 0.34);
+      opacity: 0.86;
+      text-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.72),
+        0 8px 20px rgba(0, 0, 0, 0.18);
     }
 
     .visual-card__headline {
@@ -441,7 +427,9 @@
       font-weight: 800;
       margin: 0 0 20px;
       color: inherit;
-      text-shadow: 0 3px 14px rgba(0, 0, 0, 0.38);
+      text-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.78),
+        0 10px 24px rgba(0, 0, 0, 0.22);
     }
 
     .visual-card.cover .visual-card__headline {
@@ -457,9 +445,11 @@
       letter-spacing: 0.5px;
       font-weight: 600;
       color: inherit;
-      opacity: 0.82;
+      opacity: 0.88;
       margin: 0;
-      text-shadow: 0 2px 12px rgba(0, 0, 0, 0.34);
+      text-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.72),
+        0 8px 18px rgba(0, 0, 0, 0.18);
     }
 
     .visual-card.cover .visual-card__subtitle {
@@ -479,8 +469,9 @@
       opacity: 0.72;
       margin: 0;
       letter-spacing: 0.5px;
-      text-shadow: 0 2px 10px rgba(0, 0, 0, 0.28);
-      color: #fff !important;
+      text-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.68),
+        0 6px 16px rgba(0, 0, 0, 0.16);
     }
 
     /* 主内容区 */
@@ -1616,7 +1607,6 @@
         :style="visualStyle(generatedArticle?.visual.cover)"
       >
         <div class="visual-card__grain"></div>
-        <div class="visual-card__shade"></div>
         <div class="visual-card__mark"></div>
         <div class="visual-card__text">
           <div class="visual-card__label">{{ generatedArticle ? generatedArticle.book.category : 'READING' }}</div>
@@ -1633,7 +1623,6 @@
         :style="visualStyle(image)"
       >
         <div class="visual-card__grain"></div>
-        <div class="visual-card__shade"></div>
         <div class="visual-card__mark"></div>
         <div class="visual-card__text">
           <div class="visual-card__label">0{{ index + 1 }}</div>
