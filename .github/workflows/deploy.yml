@@ -1,0 +1,146 @@
+name: Deploy
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    env:
+      SERVER_PATH: /www/wwwroot/wechat-official-account
+      PROCESS_NAME: wechat-official-account
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Verify app starts to parse
+        shell: bash
+        run: node --check api/server.mjs
+
+      - name: Prepare SSH
+        shell: bash
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -p "${{ secrets.SSH_PORT }}" "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Package app
+        shell: bash
+        run: |
+          tar \
+            --exclude='.git' \
+            --exclude='node_modules' \
+            --exclude='data' \
+            --exclude='.env' \
+            --exclude='wechat-official-account-release.tar.gz' \
+            -czf wechat-official-account-release.tar.gz \
+            .
+
+      - name: Upload package
+        shell: bash
+        run: |
+          scp -P "${{ secrets.SSH_PORT }}" wechat-official-account-release.tar.gz "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/tmp/wechat-official-account-release.tar.gz"
+
+      - name: Deploy on server
+        shell: bash
+        run: |
+          ssh -p "${{ secrets.SSH_PORT }}" "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" "APP_DIR='${SERVER_PATH}' PROCESS_NAME='${PROCESS_NAME}' bash -s" <<'EOF'
+          set -e
+
+          TMP_DIR="/tmp/wechat-official-account-deploy"
+
+          mkdir -p "$APP_DIR"
+          rm -rf "$TMP_DIR"
+          mkdir -p "$TMP_DIR"
+
+          tar -xzf /tmp/wechat-official-account-release.tar.gz -C "$TMP_DIR"
+
+          rsync -av --delete \
+            --exclude '.env' \
+            --exclude 'data/' \
+            "$TMP_DIR/" "$APP_DIR/"
+
+          mkdir -p "$APP_DIR/data"
+
+          cd "$APP_DIR"
+
+          if [ -f package-lock.json ]; then
+            npm ci --omit=dev
+          else
+            npm install --omit=dev
+          fi
+
+          if pm2 describe "$PROCESS_NAME" >/dev/null 2>&1; then
+            pm2 reload ecosystem.config.cjs --env production
+          else
+            pm2 start ecosystem.config.cjs --env production
+          fi
+
+          pm2 save
+          EOF
+
+      - name: Health check
+        shell: bash
+        run: |
+          ssh -p "${{ secrets.SSH_PORT }}" "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" "curl -fsS http://127.0.0.1:8787/api/health >/dev/null"
+
+      - name: Notify Feishu
+        if: always()
+        continue-on-error: true
+        env:
+          FEISHU_WEBHOOK: ${{ secrets.FEISHU_WEBHOOK }}
+          JOB_STATUS: ${{ job.status }}
+        shell: bash
+        run: |
+          if [ -z "$FEISHU_WEBHOOK" ]; then
+            echo "FEISHU_WEBHOOK is not set, skipping notification"
+            exit 0
+          fi
+
+          if [ "$JOB_STATUS" = "success" ]; then
+            ICON="OK"
+            RESULT="部署成功"
+          else
+            ICON="FAIL"
+            RESULT="部署失败"
+          fi
+
+          SHORT_SHA="${GITHUB_SHA::7}"
+          RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          COMMIT_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA}"
+          export ICON RESULT SHORT_SHA RUN_URL COMMIT_URL
+
+          JSON_PAYLOAD=$(python3 - <<'PY'
+          import json, os
+          text = "\n".join([
+            f"{os.environ['ICON']} WeChat Official Account {os.environ['RESULT']}",
+            f"仓库: {os.environ['GITHUB_REPOSITORY']}",
+            f"分支: {os.environ['GITHUB_REF_NAME']}",
+            f"提交: {os.environ['SHORT_SHA']}",
+            f"触发人: {os.environ['GITHUB_ACTOR']}",
+            f"提交详情: {os.environ['COMMIT_URL']}",
+            f"运行详情: {os.environ['RUN_URL']}",
+          ])
+          print(json.dumps({
+            "msg_type": "text",
+            "content": {
+              "text": text
+            }
+          }, ensure_ascii=False))
+          PY
+          )
+
+          curl -fsSL -X POST "$FEISHU_WEBHOOK" \
+            -H "Content-Type: application/json" \
+            -d "$JSON_PAYLOAD"

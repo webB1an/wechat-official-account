@@ -1,0 +1,12 @@
+{
+  "name": "wechat-official-account-book-generator",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node --no-warnings api/server.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
