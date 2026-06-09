@@ -931,11 +931,22 @@ async function generateReaderNote(book, theme, logger = null) {
   });
 }
 
-async function createArticle(book, theme, readerNote, logger = null) {
+async function createArticle(book, theme, readerNote, logger = null, retryFeedback = []) {
   if (!deepseekApiKey) {
     logger?.info('using mock article', { bookTitle: book.title });
     return mockArticle(book, theme, readerNote);
   }
+
+  const retryInstructions = retryFeedback.length > 0
+    ? [
+        '',
+        '上一次生成失败，必须修正这些问题：',
+        ...retryFeedback.map((error) => `- ${error}`),
+        '如果失败原因包含 JSON parse / Expected "," / Expected "]"，说明你在工具参数字符串里写了未转义的半角英文双引号。',
+        '正文、标题、caption 里不要使用半角英文双引号 "。需要强调词语时，改用中文冒号、顿号、书名号或单引号。',
+        '如果失败原因包含 list-like plot summary detected，说明你写成了条目清单或短句堆叠。改成自然段，不要罗列观点，不要输出 4 条以上短句。'
+      ]
+    : [];
 
   return callDeepSeekTool({
     tool: createArticleTool(),
@@ -962,6 +973,7 @@ async function createArticle(book, theme, readerNote, logger = null) {
           '- 把每段结尾都写成升华句或总结句',
           '- 超过 2 个 section 标题',
           '- 在正文中完整复述剧情或罗列观点清单',
+          '- 正文、标题、图片文案里使用半角英文双引号 "。需要引用词语时改用中文书名号、中文冒号或单引号',
           '',
           '正文约 900 到 1100 字。不要为了凑字数而写。',
           '涉及书中内容，一律用概括表达，不写无法核验的具体细节。',
@@ -991,7 +1003,8 @@ async function createArticle(book, theme, readerNote, logger = null) {
           '- 文内图 brief 3 张',
           '- 朋友圈文案 2 条，互动引导 2 条（自然短句），标签 4 个',
           '- tags 必须是字符串数组，标签只写纯文字，不要带 # 号',
-          '- visual brief 用于 HTML/CSS 生成图片，不要要求真实书封、作者照片或出版社图'
+          '- visual brief 用于 HTML/CSS 生成图片，不要要求真实书封、作者照片或出版社图',
+          ...retryInstructions
         ].join('\n')
       }
     ]
@@ -1323,10 +1336,13 @@ async function handleGenerate(req, res) {
   let articlePackage;
   let validationErrors = [];
   for (let attempt = 0; attempt < 3; attempt++) {
-    logger.info('article generation attempt started', { attempt: attempt + 1 });
+    logger.info('article generation attempt started', {
+      attempt: attempt + 1,
+      retryFeedback: validationErrors
+    });
     try {
       const rawArticlePackage = normalizeArticlePackage(
-        await createArticle(selectedBook, theme, readerNote, logger),
+        await createArticle(selectedBook, theme, readerNote, logger, validationErrors),
         readerNote
       );
       logger.info('article generation attempt returned', {
