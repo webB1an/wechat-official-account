@@ -319,14 +319,17 @@
       overflow: hidden;
       background: #f6f1e8;
       color: #17202a;
-      font-family: Georgia, "Times New Roman", "Noto Serif SC", "Songti SC", serif;
+      font-family: "PingFang SC", "Noto Sans SC", "Microsoft YaHei", Arial, sans-serif;
       isolation: isolate;
     }
 
     .visual-card.cover {
       width: 900px;
       height: 383px;
-      padding: 46px 58px;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
     .visual-card.inline {
@@ -347,6 +350,42 @@
       z-index: -1;
     }
 
+    .visual-card__shade {
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(90deg, rgba(0, 0, 0, 0.28), rgba(0, 0, 0, 0.08) 42%, rgba(255, 255, 255, 0.08)),
+        radial-gradient(circle at 50% 50%, rgba(0, 0, 0, 0.18), transparent 44%);
+      mix-blend-mode: multiply;
+      opacity: 0.82;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    .visual-card__text {
+      position: relative;
+      z-index: 2;
+      color: #fff !important;
+    }
+
+    .visual-card.cover .visual-card__text {
+      width: 383px;
+      height: 383px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 38px 32px;
+      text-align: center;
+      background: rgba(0, 0, 0, 0.24);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22);
+      backdrop-filter: blur(1px);
+    }
+
+    .visual-card.inline .visual-card__text {
+      max-width: 560px;
+    }
+
     .visual-card__mark {
       position: absolute;
       right: 46px;
@@ -356,6 +395,7 @@
       border-radius: 50%;
       border: 1px solid currentColor;
       opacity: 0.22;
+      z-index: 1;
     }
 
     .visual-card__mark::before,
@@ -385,37 +425,47 @@
     .visual-card__label {
       font-size: 21px;
       line-height: 1;
-      letter-spacing: 0;
-      font-weight: 700;
+      letter-spacing: 0.5px;
+      font-weight: 800;
       margin-bottom: 34px;
       color: inherit;
       opacity: 0.78;
+      text-shadow: 0 2px 10px rgba(0, 0, 0, 0.34);
     }
 
     .visual-card__headline {
       max-width: 560px;
       font-size: 46px;
       line-height: 1.13;
-      letter-spacing: 0;
+      letter-spacing: 0.5px;
       font-weight: 800;
       margin: 0 0 20px;
       color: inherit;
+      text-shadow: 0 3px 14px rgba(0, 0, 0, 0.38);
     }
 
     .visual-card.cover .visual-card__headline {
-      max-width: 480px;
-      font-size: 43px;
+      max-width: 319px;
+      font-size: 39px;
+      line-height: 1.12;
     }
 
     .visual-card__subtitle {
       max-width: 560px;
       font-size: 25px;
       line-height: 1.35;
-      letter-spacing: 0;
-      font-weight: 500;
+      letter-spacing: 0.5px;
+      font-weight: 600;
       color: inherit;
       opacity: 0.82;
       margin: 0;
+      text-shadow: 0 2px 12px rgba(0, 0, 0, 0.34);
+    }
+
+    .visual-card.cover .visual-card__subtitle {
+      max-width: 319px;
+      font-size: 20px;
+      line-height: 1.45;
     }
 
     .visual-card__caption {
@@ -428,6 +478,9 @@
       color: inherit;
       opacity: 0.72;
       margin: 0;
+      letter-spacing: 0.5px;
+      text-shadow: 0 2px 10px rgba(0, 0, 0, 0.28);
+      color: #fff !important;
     }
 
     /* 主内容区 */
@@ -1563,10 +1616,13 @@
         :style="visualStyle(generatedArticle?.visual.cover)"
       >
         <div class="visual-card__grain"></div>
+        <div class="visual-card__shade"></div>
         <div class="visual-card__mark"></div>
-        <div class="visual-card__label">{{ generatedArticle ? generatedArticle.book.category : 'READING' }}</div>
-        <h2 class="visual-card__headline">{{ generatedArticle?.visual.cover.headline || '公众号推书' }}</h2>
-        <p class="visual-card__subtitle">{{ generatedArticle?.visual.cover.subtitle || '一本适合今天慢慢读的书' }}</p>
+        <div class="visual-card__text">
+          <div class="visual-card__label">{{ generatedArticle ? generatedArticle.book.category : 'READING' }}</div>
+          <h2 class="visual-card__headline">{{ generatedArticle?.visual.cover.headline || '公众号推书' }}</h2>
+          <p class="visual-card__subtitle">{{ generatedArticle?.visual.cover.subtitle || '一本适合今天慢慢读的书' }}</p>
+        </div>
       </div>
 
       <div
@@ -1577,10 +1633,13 @@
         :style="visualStyle(image)"
       >
         <div class="visual-card__grain"></div>
+        <div class="visual-card__shade"></div>
         <div class="visual-card__mark"></div>
-        <div class="visual-card__label">0{{ index + 1 }}</div>
-        <h2 class="visual-card__headline">{{ image.title }}</h2>
-        <p class="visual-card__subtitle">{{ image.subtitle }}</p>
+        <div class="visual-card__text">
+          <div class="visual-card__label">0{{ index + 1 }}</div>
+          <h2 class="visual-card__headline">{{ image.title }}</h2>
+          <p class="visual-card__subtitle">{{ image.subtitle }}</p>
+        </div>
         <p class="visual-card__caption">{{ image.caption }}</p>
       </div>
     </div>
