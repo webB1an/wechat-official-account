@@ -362,7 +362,7 @@
       flex-direction: column;
       justify-content: center;
       align-items: center;
-      padding: 38px 32px;
+      padding: 44px 34px;
       text-align: center;
     }
 
@@ -433,9 +433,10 @@
     }
 
     .visual-card.cover .visual-card__headline {
-      max-width: 319px;
-      font-size: 39px;
+      max-width: 315px;
+      font-size: 44px;
       line-height: 1.12;
+      margin: 0;
     }
 
     .visual-card__subtitle {
@@ -1609,9 +1610,7 @@
         <div class="visual-card__grain"></div>
         <div class="visual-card__mark"></div>
         <div class="visual-card__text">
-          <div class="visual-card__label">{{ generatedArticle ? generatedArticle.book.category : 'READING' }}</div>
-          <h2 class="visual-card__headline">{{ generatedArticle?.visual.cover.headline || '公众号推书' }}</h2>
-          <p class="visual-card__subtitle">{{ generatedArticle?.visual.cover.subtitle || '一本适合今天慢慢读的书' }}</p>
+          <h2 class="visual-card__headline">{{ getCoverHeadline() }}</h2>
         </div>
       </div>
 

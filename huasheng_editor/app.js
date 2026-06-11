@@ -899,7 +899,9 @@ const editorApp = createApp({
 
     buildGeneratedMarkdown(articlePackage, inlineImages) {
       const sections = articlePackage.article?.sections || [];
+      const openingQuote = this.buildOpeningQuote(articlePackage);
       const lines = [
+        ...openingQuote,
         articlePackage.abstract?.text || '',
         ''
       ];
@@ -957,6 +959,42 @@ const editorApp = createApp({
       }
 
       return lines.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+    },
+
+    buildOpeningQuote(articlePackage) {
+      const bookTitle = articlePackage.book?.title || this.currentGeneratedBookTitle || '';
+      const abstractText = String(articlePackage.abstract?.text || '').trim();
+      const fallback = bookTitle
+        ? `读完《${bookTitle}》，先别急着找答案。`
+        : '先别急着找答案，慢慢看见问题本身。';
+      const sentence = (abstractText.match(/^[^。！？!?]{8,42}[。！？!?]/)?.[0] || fallback)
+        .replace(/["“”]/g, '')
+        .trim();
+
+      return bookTitle
+        ? [`> ${sentence}`, `> ——《${bookTitle}》`, '']
+        : [`> ${sentence}`, ''];
+    },
+
+    getCoverHeadline() {
+      const rawHeadline = String(this.generatedArticle?.visual?.cover?.headline || '').trim();
+      const bookTitle = String(this.generatedArticle?.book?.title || '').trim();
+      const titleCandidates = Array.isArray(this.generatedArticle?.titles)
+        ? this.generatedArticle.titles.map((item) => String(item.title || '').trim()).filter(Boolean)
+        : [];
+      const candidates = [rawHeadline, ...titleCandidates, bookTitle]
+        .map((title) => title
+          .replace(/[“”"]/g, '')
+          .replace(/^读[《<]?(.+?)[》>]?$/, '$1')
+          .replace(/[，。！？!?；;：:].*$/, '')
+          .trim())
+        .filter(Boolean);
+      const compact = candidates.find((title) => this.countChineseLikeChars(title) <= 14);
+      return compact || bookTitle || rawHeadline || '公众号推书';
+    },
+
+    countChineseLikeChars(text) {
+      return Array.from(String(text || '').replace(/\s+/g, '')).length;
     },
 
     getGeneratedArticleTitle() {
